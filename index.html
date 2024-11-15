@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Cờ Vua Đơn Giản - Tô Màu Ô Di Chuyển</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #eee;
+            margin: 0;
+        }
+        #chessboard {
+            display: grid;
+            grid-template-columns: repeat(8, 60px);
+            grid-template-rows: repeat(8, 60px);
+            border: 5px solid #333;
+        }
+        .square {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 30px;
+            cursor: pointer;
+        }
+        .square:nth-child(even) { background-color: #f0d9b5; }
+        .square:nth-child(odd) { background-color: #b58863; }
+        .selected { outline: 3px solid blue; }
+        .highlight { background-color: yellow !important; }
+        #turnIndicator {
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+        #gameOverMessage {
+            font-size: 24px;
+            margin-top: 20px;
+            color: green;
+            display: none;
+        }
+        #director-name {
+            font-size: 30px;
+            border-style: dashed;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="director-name">Chess Game Made By Thái Nguyễn</div> <br>
+<div id="turnIndicator">Lượt đi: Quân trắng</div>
+<div id="chessboard"></div>
+<div id="gameOverMessage"></div>
+<div id="gameOverMessage"></div>
+<button id="replayButton" onclick="location.reload()" style="display: none; margin-top: 10px;">Chơi lại</button>
+
+<script>
+    const initialBoard = [
+        ["♜", "♞", "♝", "♛", "♚", "♝", "♞", "♜"],
+        ["♟", "♟", "♟", "♟", "♟", "♟", "♟", "♟"],
+        ["", "", "", "", "", "", "", ""],
+        ["", "", "", "", "", "", "", ""],
+        ["", "", "", "", "", "", "", ""],
+        ["", "", "", "", "", "", "", ""],
+        ["♙", "♙", "♙", "♙", "♙", "♙", "♙", "♙"],
+        ["♖", "♘", "♗", "♕", "♔", "♗", "♘", "♖"]
+    ];
+    let selectedSquare = null;
+    let currentPlayer = "white";
+    let gameOver = false;
+    const chessboard = document.getElementById('chessboard');
+    const turnIndicator = document.getElementById('turnIndicator');
+    const gameOverMessage = document.getElementById('gameOverMessage');
+
+    function renderBoard() {
+        chessboard.innerHTML = '';
+        initialBoard.forEach((row, rowIndex) => {
+            row.forEach((piece, colIndex) => {
+                const square = document.createElement('div');
+                square.classList.add('square');
+                square.innerText = piece;
+                square.dataset.row = rowIndex;
+                square.dataset.col = colIndex;
+                square.onclick = () => handleSquareClick(square);
+                chessboard.appendChild(square);
+            });
+        });
+    }
+
+    function handleSquareClick(square) {
+        if (gameOver) return;
+
+        const row = parseInt(square.dataset.row);
+        const col = parseInt(square.dataset.col);
+        const piece = initialBoard[row][col];
+
+        if (selectedSquare === null) {
+            if ((currentPlayer === "white" && isWhitePiece(piece)) ||
+                (currentPlayer === "black" && isBlackPiece(piece))) {
+                selectedSquare = square;
+                square.classList.add('selected');
+                highlightValidMoves(row, col);
+            }
+        } else {
+            const selectedRow = parseInt(selectedSquare.dataset.row);
+            const selectedCol = parseInt(selectedSquare.dataset.col);
+
+            if (isValidMove(selectedRow, selectedCol, row, col)) {
+                initialBoard[row][col] = initialBoard[selectedRow][selectedCol];
+                initialBoard[selectedRow][selectedCol] = "";
+                selectedSquare.classList.remove('selected');
+                selectedSquare = null;
+
+                if (checkForVictory()) {
+                    gameOver = true;
+                    return;
+                }
+
+                currentPlayer = currentPlayer === "white" ? "black" : "white";
+                turnIndicator.innerText = `Lượt đi: ${currentPlayer === "white" ? "Quân trắng" : "Quân đen"}`;
+                
+                renderBoard();
+            } else {
+                selectedSquare.classList.remove('selected');
+                selectedSquare = null;
+            }
+            clearHighlights();
+        }
+    }
+
+    function highlightValidMoves(startRow, startCol) {
+        clearHighlights();
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                if (isValidMove(startRow, startCol, row, col)) {
+                    const square = document.querySelector(`.square[data-row='${row}'][data-col='${col}']`);
+                    square.classList.add('highlight');
+                }
+            }
+        }
+    }
+
+    function clearHighlights() {
+        document.querySelectorAll('.highlight').forEach(square => {
+            square.classList.remove('highlight');
+        });
+    }
+
+    function checkForVictory() {
+        let whiteKingAlive = false;
+        let blackKingAlive = false;
+
+        initialBoard.forEach(row => {
+            row.forEach(piece => {
+                if (piece === "♔") whiteKingAlive = true;
+                if (piece === "♚") blackKingAlive = true;
+            });
+        });
+
+        if (!whiteKingAlive) {
+            gameOverMessage.innerText = "Chúc mừng phe Đen đã chiến thắng!";
+            gameOverMessage.style.display = "block";
+            return true;
+        }
+        if (!blackKingAlive) {
+            gameOverMessage.innerText = "Chúc mừng phe Trắng đã chiến thắng!";
+            gameOverMessage.style.display = "block";
+            return true;
+        }
+        return false;
+    }
+
+    function isWhitePiece(piece) {
+        return ["♙", "♖", "♘", "♗", "♕", "♔"].includes(piece);
+    }
+
+    function isBlackPiece(piece) {
+        return ["♟", "♜", "♞", "♝", "♛", "♚"].includes(piece);
+    }
+
+    function isValidMove(startRow, startCol, endRow, endCol) {
+        const piece = initialBoard[startRow][startCol];
+        const targetPiece = initialBoard[endRow][endCol];
+
+        if (targetPiece && ((isWhitePiece(piece) && isWhitePiece(targetPiece)) ||
+                            (isBlackPiece(piece) && isBlackPiece(targetPiece)))) {
+            return false;
+        }
+
+        switch (piece) {
+            case "♙":
+                if (startCol === endCol && startRow - endRow === 1 && !targetPiece) return true;
+                if (startRow === 6 && startCol === endCol && startRow - endRow === 2 && !targetPiece) return true;
+                if (Math.abs(startCol - endCol) === 1 && startRow - endRow === 1 && targetPiece) return true;
+                break;
+            case "♟":
+                if (startCol === endCol && endRow - startRow === 1 && !targetPiece) return true;
+                if (startRow === 1 && startCol === endCol && endRow - startRow === 2 && !targetPiece) return true;
+                if (Math.abs(startCol - endCol) === 1 && endRow - startRow === 1 && targetPiece) return true;
+                break;
+            case "♖": case "♜":
+                return checkClearPath(startRow, startCol, endRow, endCol);
+            case "♘": case "♞":
+                if ((Math.abs(startRow - endRow) === 2 && Math.abs(startCol - endCol) === 1) ||
+                    (Math.abs(startRow - endRow) === 1 && Math.abs(startCol - endCol) === 2)) return true;
+                break;
+            case "♗": case "♝":
+                if (Math.abs(startRow - endRow) === Math.abs(startCol - endCol)) {
+                    return checkClearPath(startRow, startCol, endRow, endCol);
+                }
+                break;
+            case "♕": case "♛":
+                if (startRow === endRow || startCol === endCol || Math.abs(startRow - endRow) === Math.abs(startCol - endCol)) {
+                    return checkClearPath(startRow, startCol, endRow, endCol);
+                }
+                break;
+            case "♔": case "♚":
+                if (Math.abs(startRow - endRow) <= 1 && Math.abs(startCol - endCol) <= 1) return true;
+                break;
+        }
+        return false;
+    }
+
+    function checkClearPath(startRow, startCol, endRow, endCol) {
+        const rowStep = endRow > startRow ? 1 : (endRow < startRow ? -1 : 0);
+        const colStep = endCol > startCol ? 1 : (endCol < startCol ? -1 : 0);
+        let row = startRow + rowStep;
+        let col = startCol + colStep;
+
+        while (row !== endRow || col !== endCol) {
+            if (initialBoard[row][col]) return false;
+            row += rowStep;
+            col += colStep;
+        }
+        return true;
+    }
+
+    renderBoard();
+</script>
+
+</body>
+</html>
